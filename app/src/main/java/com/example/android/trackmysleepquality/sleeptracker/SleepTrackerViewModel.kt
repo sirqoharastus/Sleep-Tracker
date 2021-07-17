@@ -18,7 +18,9 @@ package com.example.android.trackmysleepquality.sleeptracker
 
 import android.app.Application
 import android.content.res.Resources
+import android.view.animation.Transformation
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import com.example.android.trackmysleepquality.database.SleepDatabaseDao
@@ -44,9 +46,23 @@ class SleepTrackerViewModel(
 
     private val tonight = MutableLiveData<SleepNight?>()
     private val nights = database.getAllNights()
+    private val _showSnackbarEvent = MutableLiveData<Boolean>()
+    val showSnackbarEvent: LiveData<Boolean> get() = _showSnackbarEvent
+
+    fun doneShowingSnackbar(){
+        _showSnackbarEvent.value = null
+    }
 
     val nightString = Transformations.map(nights){nights ->
         formatNights(nights, application.resources)
+    }
+
+    private val _navigationToSleepQuality = MutableLiveData<SleepNight>()
+
+    val navigationToSleepQuality: LiveData<SleepNight> get() = _navigationToSleepQuality
+
+    fun doneNavigating(){
+        _navigationToSleepQuality.value = null
     }
 
     init {
@@ -91,6 +107,9 @@ class SleepTrackerViewModel(
 
             oldNight.endTimeMilli = System.currentTimeMillis()
             update(oldNight)
+            withContext(Dispatchers.Main){
+                _navigationToSleepQuality.value = oldNight
+            }
         }
     }
 
@@ -104,9 +123,23 @@ class SleepTrackerViewModel(
             clear()
             withContext(Dispatchers.Main){
                 tonight.value = null
+                _showSnackbarEvent.value = true
             }
         }
     }
+
+    val startButtonVisible = Transformations.map(tonight){
+        null == it
+    }
+
+    val stopButtonVisible = Transformations.map(tonight){
+        null != it
+    }
+
+    val clearButtonVisible = Transformations.map(nights){
+        it.isNotEmpty()
+    }
+
 
     suspend fun clear(){
         withContext(Dispatchers.IO){
